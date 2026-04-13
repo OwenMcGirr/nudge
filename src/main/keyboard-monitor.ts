@@ -1,4 +1,3 @@
-const TAB_KEYCODE = 15
 const ESCAPE_KEYCODE = 1
 const BACKSPACE_KEYCODE = 14
 const ENTER_KEYCODE = 28
@@ -21,7 +20,6 @@ export class KeyboardMonitor {
     if (keycode === 0) return
 
     if (this.overlayActive) {
-      if (keycode === TAB_KEYCODE) return // handled by index.ts
       this.overlayActive = false
       this.onDismiss()
       if (keycode === ESCAPE_KEYCODE) return // only dismiss, don't type

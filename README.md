@@ -2,7 +2,7 @@
 
 AI-powered autocomplete for your desktop.
 
-Nudge runs as an Electron app, watches your recent typing, asks a local Ollama model for a short continuation, and shows the suggestion in a small overlay near the cursor. Press `Tab` to insert the suggestion or `Esc` to dismiss it.
+Nudge runs as an Electron app, watches your recent typing, asks a local Ollama model for a short continuation, and shows the suggestion in a small overlay near the cursor. Click the suggestion to insert it, or click Dismiss to hide it.
 
 ## Requirements
 

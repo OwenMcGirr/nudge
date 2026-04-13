@@ -1,4 +1,4 @@
-import { app } from 'electron'
+import { app, ipcMain } from 'electron'
 // @ts-ignore — @tkomde/iohook has no TypeScript definitions; exports instance directly
 const iohook = require('@tkomde/iohook')
 import { resolveAutocompleteContext, WindowsActiveTextReader } from './active-text-reader'
@@ -6,8 +6,6 @@ import { KeyboardMonitor } from './keyboard-monitor'
 import { OllamaClient } from './ollama-client'
 import { TextInjector } from './text-injector'
 import { WindowManager } from './window-manager'
-
-const TAB_KEYCODE = 15
 
 // iohook emits scan codes (AT Set 1) but keychar is undefined in this build.
 // Map scan code → [unshifted, shifted] for US-QWERTY layout.
@@ -43,6 +41,20 @@ const textInjector = new TextInjector()
 const windowManager = new WindowManager()
 const activeTextReader = new WindowsActiveTextReader()
 
+function hideCurrentSuggestion(): void {
+  overlayVisible = false
+  currentSuggestion = ''
+  keyboardMonitor.setOverlayActive(false)
+  keyboardMonitor.cancelDebounce()
+  windowManager.hideSuggestion()
+}
+
+function acceptCurrentSuggestion(): void {
+  if (!overlayVisible || !currentSuggestion) return
+  textInjector.inject(currentSuggestion)
+  hideCurrentSuggestion()
+}
+
 const keyboardMonitor = new KeyboardMonitor(
   async (bufferContext) => {
     const focusedTextResult = await activeTextReader.getFocusedTextResult(bufferContext)
@@ -63,7 +75,7 @@ const keyboardMonitor = new KeyboardMonitor(
     windowManager.showSuggestion(suggestion)
   },
   () => {
-    // overlay dismissed (Esc or any non-Tab key)
+    // overlay dismissed by keyboard, click, or typing while visible
     overlayVisible = false
     currentSuggestion = ''
     ollamaClient.cancel()
@@ -74,17 +86,17 @@ const keyboardMonitor = new KeyboardMonitor(
 app.whenReady().then(() => {
   windowManager.createOverlay()
 
+  ipcMain.on('accept-suggestion', () => {
+    acceptCurrentSuggestion()
+  })
+
+  ipcMain.on('dismiss-suggestion', () => {
+    hideCurrentSuggestion()
+    ollamaClient.cancel()
+  })
+
   iohook.on('keydown', (event: { keycode: number; keychar?: string | number; shiftKey?: boolean }) => {
     const resolved = resolveKeychar(event.keycode, event.keychar, event.shiftKey ?? false)
-    if (overlayVisible && event.keycode === TAB_KEYCODE) {
-      textInjector.inject(currentSuggestion)
-      overlayVisible = false
-      currentSuggestion = ''
-      keyboardMonitor.setOverlayActive(false)
-      keyboardMonitor.cancelDebounce()
-      windowManager.hideSuggestion()
-      return
-    }
     keyboardMonitor.handleKeydown(event.keycode, resolved)
   })
 

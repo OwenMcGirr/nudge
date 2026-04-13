@@ -132,7 +132,7 @@ describe('KeyboardMonitor — overlay interaction', () => {
     expect(onDismiss).toHaveBeenCalledOnce()
   })
 
-  it('calls onDismiss on any non-Tab key when overlay active', () => {
+  it('calls onDismiss on any key when overlay active', () => {
     const onDismiss = vi.fn()
     const m = new KeyboardMonitor(vi.fn(), onDismiss)
     m.setOverlayActive(true)
@@ -140,12 +140,12 @@ describe('KeyboardMonitor — overlay interaction', () => {
     expect(onDismiss).toHaveBeenCalledOnce()
   })
 
-  it('does NOT call onDismiss for Tab (handled externally in index.ts)', () => {
+  it('dismisses on Tab instead of accepting the suggestion', () => {
     const onDismiss = vi.fn()
     const m = new KeyboardMonitor(vi.fn(), onDismiss)
     m.setOverlayActive(true)
     m.handleKeydown(TAB, undefined)
-    expect(onDismiss).not.toHaveBeenCalled()
+    expect(onDismiss).toHaveBeenCalledOnce()
   })
 
   it('resumes normal typing after overlay dismissed by non-Tab key', () => {

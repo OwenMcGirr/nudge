@@ -6,5 +6,7 @@ contextBridge.exposeInMainWorld('electron', {
   },
   onHide: (callback: () => void) => {
     ipcRenderer.on('hide-suggestion', () => callback())
-  }
+  },
+  acceptSuggestion: () => ipcRenderer.send('accept-suggestion'),
+  dismissSuggestion: () => ipcRenderer.send('dismiss-suggestion')
 })
