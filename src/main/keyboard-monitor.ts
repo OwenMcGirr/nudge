@@ -36,7 +36,10 @@ export class KeyboardMonitor {
   }
 
   private scheduleCompletion(): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer)
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer)
+      this.debounceTimer = null
+    }
     if (this.buffer.length < MIN_BUFFER) return
     this.debounceTimer = setTimeout(() => {
       this.onTrigger(this.buffer)
@@ -56,6 +59,10 @@ export class KeyboardMonitor {
 
   clearBuffer(): void {
     this.buffer = ''
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer)
+      this.debounceTimer = null
+    }
   }
 
   getContext(): string {

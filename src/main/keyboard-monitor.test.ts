@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { KeyboardMonitor } from './keyboard-monitor'
 
 // iohook keycodes (Windows scan codes)
@@ -69,6 +69,37 @@ describe('KeyboardMonitor — debounce', () => {
     expect(onTrigger).not.toHaveBeenCalled()
     vi.advanceTimersByTime(500)
     expect(onTrigger).toHaveBeenCalledOnce()
+    vi.useRealTimers()
+  })
+
+  it('cancelDebounce prevents onTrigger from firing', () => {
+    vi.useFakeTimers()
+    const onTrigger = vi.fn()
+    const m = new KeyboardMonitor(onTrigger, vi.fn())
+    'hello world'.split('').forEach(c => m.handleKeydown(30, c))
+    m.cancelDebounce()
+    vi.advanceTimersByTime(2000)
+    expect(onTrigger).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
+  it('exactly 9 chars does NOT trigger onTrigger', () => {
+    vi.useFakeTimers()
+    const onTrigger = vi.fn()
+    const m = new KeyboardMonitor(onTrigger, vi.fn())
+    'abcdefghi'.split('').forEach(c => m.handleKeydown(30, c)) // 9 chars
+    vi.advanceTimersByTime(2000)
+    expect(onTrigger).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
+  it('exactly 10 chars SHOULD trigger onTrigger', () => {
+    vi.useFakeTimers()
+    const onTrigger = vi.fn()
+    const m = new KeyboardMonitor(onTrigger, vi.fn())
+    'abcdefghij'.split('').forEach(c => m.handleKeydown(30, c)) // 10 chars
+    vi.advanceTimersByTime(2000)
+    expect(onTrigger).toHaveBeenCalledWith('abcdefghij')
     vi.useRealTimers()
   })
 })
