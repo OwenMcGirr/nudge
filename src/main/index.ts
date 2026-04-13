@@ -45,6 +45,7 @@ app.whenReady().then(() => {
       overlayVisible = false
       currentSuggestion = ''
       keyboardMonitor.setOverlayActive(false)
+      keyboardMonitor.cancelDebounce()
       windowManager.hideSuggestion()
       return
     }
