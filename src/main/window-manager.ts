@@ -32,6 +32,7 @@ export class WindowManager {
     } else {
       this.overlay.loadFile(join(__dirname, '../renderer/index.html'))
     }
+
   }
 
   showSuggestion(text: string): void {

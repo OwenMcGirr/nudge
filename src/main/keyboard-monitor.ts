@@ -16,6 +16,9 @@ export class KeyboardMonitor {
   ) {}
 
   handleKeydown(keycode: number, keychar: string | undefined): void {
+    // keycode 0 = synthetic keystroke from text injection; ignore entirely
+    if (keycode === 0) return
+
     if (this.overlayActive) {
       if (keycode === TAB_KEYCODE) return // handled by index.ts
       this.overlayActive = false
