@@ -5,6 +5,7 @@ import { KeyboardMonitor } from './keyboard-monitor'
 const BACKSPACE = 14
 const TAB = 15
 const ESCAPE = 1
+const ENTER = 28
 
 describe('KeyboardMonitor — buffer', () => {
   it('accumulates typed characters', () => {
@@ -33,6 +34,13 @@ describe('KeyboardMonitor — buffer', () => {
     const m = new KeyboardMonitor(vi.fn(), vi.fn())
     m.handleKeydown(30, 'a')
     m.clearBuffer()
+    expect(m.getContext()).toBe('')
+  })
+
+  it('clears the buffer on Enter', () => {
+    const m = new KeyboardMonitor(vi.fn(), vi.fn())
+    'hello world'.split('').forEach(c => m.handleKeydown(30, c))
+    m.handleKeydown(ENTER, undefined)
     expect(m.getContext()).toBe('')
   })
 })
@@ -78,6 +86,17 @@ describe('KeyboardMonitor — debounce', () => {
     const m = new KeyboardMonitor(onTrigger, vi.fn())
     'hello world'.split('').forEach(c => m.handleKeydown(30, c))
     m.cancelDebounce()
+    vi.advanceTimersByTime(2000)
+    expect(onTrigger).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
+  it('Enter cancels a pending completion', () => {
+    vi.useFakeTimers()
+    const onTrigger = vi.fn()
+    const m = new KeyboardMonitor(onTrigger, vi.fn())
+    'hello world'.split('').forEach(c => m.handleKeydown(30, c))
+    m.handleKeydown(ENTER, undefined)
     vi.advanceTimersByTime(2000)
     expect(onTrigger).not.toHaveBeenCalled()
     vi.useRealTimers()
@@ -134,5 +153,15 @@ describe('KeyboardMonitor — overlay interaction', () => {
     m.setOverlayActive(true)
     m.handleKeydown(30, 'a') // dismisses overlay + types 'a'
     expect(m.getContext()).toBe('a')
+  })
+
+  it('dismisses the overlay and clears the buffer on Enter', () => {
+    const onDismiss = vi.fn()
+    const m = new KeyboardMonitor(vi.fn(), onDismiss)
+    'hello world'.split('').forEach(c => m.handleKeydown(30, c))
+    m.setOverlayActive(true)
+    m.handleKeydown(ENTER, undefined)
+    expect(onDismiss).toHaveBeenCalledOnce()
+    expect(m.getContext()).toBe('')
   })
 })

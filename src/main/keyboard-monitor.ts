@@ -1,6 +1,7 @@
 const TAB_KEYCODE = 15
 const ESCAPE_KEYCODE = 1
 const BACKSPACE_KEYCODE = 14
+const ENTER_KEYCODE = 28
 const MAX_BUFFER = 500
 const MIN_BUFFER = 10
 const DEBOUNCE_MS = 2000
@@ -24,6 +25,11 @@ export class KeyboardMonitor {
       this.overlayActive = false
       this.onDismiss()
       if (keycode === ESCAPE_KEYCODE) return // only dismiss, don't type
+    }
+
+    if (keycode === ENTER_KEYCODE) {
+      this.clearBuffer()
+      return
     }
 
     if (keycode === BACKSPACE_KEYCODE) {
