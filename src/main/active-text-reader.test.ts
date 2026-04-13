@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { resolveAutocompleteContext, selectFocusedTextCandidate } from './active-text-reader'
+import {
+  createFocusId,
+  resolveAutocompleteContext,
+  selectFocusedTextCandidate
+} from './active-text-reader'
 
 describe('resolveAutocompleteContext', () => {
   it('falls back to the keyboard buffer when focused text is unavailable', () => {
@@ -16,6 +20,24 @@ describe('resolveAutocompleteContext', () => {
 
   it('uses focused text when it cannot be aligned with the keyboard buffer', () => {
     expect(resolveAutocompleteContext('typed context', 'existing input text')).toBe('existing input text')
+  })
+})
+
+describe('createFocusId', () => {
+  it('returns a stable focus id from UI Automation identity fields', () => {
+    expect(
+      createFocusId({
+        processId: 123,
+        controlType: 'ControlType.Edit',
+        automationId: 'message',
+        className: 'Edit',
+        name: 'Message'
+      })
+    ).toBe('123|ControlType.Edit|message|Edit|Message')
+  })
+
+  it('returns null without enough identity data', () => {
+    expect(createFocusId({ controlType: 'ControlType.Edit' })).toBeNull()
   })
 })
 
@@ -39,9 +61,10 @@ describe('selectFocusedTextCandidate', () => {
             controlType: 'ControlType.Edit'
           }
         ],
-        'world'
+        'world',
+        'focus-1'
       )
-    ).toMatchObject({ text: 'hello world' })
+    ).toMatchObject({ text: 'hello world', focusId: 'focus-1' })
   })
 
   it('uses an aligned document candidate when the focused edit is not useful', () => {
@@ -63,9 +86,10 @@ describe('selectFocusedTextCandidate', () => {
             controlType: 'ControlType.Document'
           }
         ],
-        'typed context'
+        'typed context',
+        'focus-1'
       )
-    ).toMatchObject({ text: 'earlier text plus typed context after it' })
+    ).toMatchObject({ text: 'earlier text plus typed context after it', focusId: 'focus-1' })
   })
 
   it('rejects document candidates that do not align with the keyboard buffer', () => {
@@ -80,8 +104,9 @@ describe('selectFocusedTextCandidate', () => {
             controlType: 'ControlType.Document'
           }
         ],
-        'typed context'
+        'typed context',
+        'focus-1'
       )
-    ).toMatchObject({ text: null, source: 'noUsableCandidate' })
+    ).toMatchObject({ text: null, source: 'noUsableCandidate', focusId: 'focus-1' })
   })
 })

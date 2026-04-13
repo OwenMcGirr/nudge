@@ -35,6 +35,7 @@ function resolveKeychar(keycode: number, keychar: string | number | undefined, s
 
 let currentSuggestion = ''
 let overlayVisible = false
+let lastFocusId: string | null = null
 
 const ollamaClient = new OllamaClient()
 const textInjector = new TextInjector()
@@ -58,13 +59,24 @@ function acceptCurrentSuggestion(): void {
 const keyboardMonitor = new KeyboardMonitor(
   async (bufferContext) => {
     const focusedTextResult = await activeTextReader.getFocusedTextResult(bufferContext)
-    const context = resolveAutocompleteContext(bufferContext, focusedTextResult.text)
+    let effectiveBufferContext = bufferContext
+
+    if (focusedTextResult.focusId && focusedTextResult.focusId !== lastFocusId) {
+      keyboardMonitor.clearBuffer()
+      effectiveBufferContext = ''
+      lastFocusId = focusedTextResult.focusId
+      console.log('[active-text-reader] focused element changed; cleared keyboard buffer')
+    }
+
+    const context = resolveAutocompleteContext(effectiveBufferContext, focusedTextResult.text)
 
     if (!focusedTextResult.text) {
       console.log(
-        `[active-text-reader] no focused text via ${focusedTextResult.source}; using keyboard buffer (${bufferContext.length} chars)`
+        `[active-text-reader] no focused text via ${focusedTextResult.source}; using keyboard buffer (${effectiveBufferContext.length} chars)`
       )
     }
+
+    if (context.trim().length === 0) return
 
     const suggestion = await ollamaClient.generate(context)
     if (!suggestion) return

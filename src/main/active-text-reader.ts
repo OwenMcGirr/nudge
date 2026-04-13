@@ -21,6 +21,21 @@ $Candidates = New-Object System.Collections.Generic.List[object]
 $Visited = 0
 $Walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
 
+function Get-ElementIdentity([System.Windows.Automation.AutomationElement] $Element) {
+  if ($null -eq $Element) {
+    return $null
+  }
+
+  $current = $Element.Current
+  return @{
+    processId = $current.ProcessId
+    controlType = $current.ControlType.ProgrammaticName
+    automationId = $current.AutomationId
+    className = $current.ClassName
+    name = $current.Name
+  }
+}
+
 function Add-Candidate(
   [System.Windows.Automation.AutomationElement] $Element,
   [string] $Relation,
@@ -107,9 +122,11 @@ function Inspect-Descendants(
 
 $element = [System.Windows.Automation.AutomationElement]::FocusedElement
 if ($null -eq $element -or $element.Current.IsPassword) {
-  @{ candidates = @(); source = 'none' } | ConvertTo-Json -Compress -Depth 6
+  @{ candidates = @(); focusedElement = $null; source = 'none' } | ConvertTo-Json -Compress -Depth 6
   exit 0
 }
+
+$focusedElement = Get-ElementIdentity $element
 
 Inspect-Element $element 'focused' 0
 Inspect-Descendants $element 1
@@ -122,7 +139,7 @@ while ($null -ne $ancestor -and $ancestorDistance -le $MaxAncestorDepth) {
   $ancestorDistance++
 }
 
-@{ candidates = $Candidates; source = 'candidates' } | ConvertTo-Json -Compress -Depth 6
+@{ candidates = $Candidates; focusedElement = $focusedElement; source = 'candidates' } | ConvertTo-Json -Compress -Depth 6
 `
 
 export interface ActiveTextReader {
@@ -132,6 +149,15 @@ export interface ActiveTextReader {
 export interface FocusedTextResult {
   text: string | null
   source: string
+  focusId: string | null
+}
+
+interface FocusedElementIdentity {
+  processId?: number
+  controlType?: string
+  automationId?: string
+  className?: string
+  name?: string
 }
 
 interface FocusedTextCandidate {
@@ -144,6 +170,18 @@ interface FocusedTextCandidate {
   className?: string
   automationId?: string
   processId?: number
+}
+
+export function createFocusId(identity: FocusedElementIdentity | null | undefined): string | null {
+  if (!identity || !identity.processId || !identity.controlType) return null
+
+  return [
+    identity.processId,
+    identity.controlType,
+    identity.automationId ?? '',
+    identity.className ?? '',
+    identity.name ?? ''
+  ].join('|')
 }
 
 export function resolveAutocompleteContext(bufferContext: string, focusedText: string | null): string {
@@ -212,7 +250,8 @@ function scoreCandidate(candidate: FocusedTextCandidate, text: string, bufferCon
 
 export function selectFocusedTextCandidate(
   candidates: FocusedTextCandidate[],
-  bufferContext: string
+  bufferContext: string,
+  focusId: string | null = null
 ): FocusedTextResult {
   let best: { candidate: FocusedTextCandidate; text: string; score: number } | null = null
 
@@ -228,7 +267,7 @@ export function selectFocusedTextCandidate(
     }
   }
 
-  if (!best) return { text: null, source: 'noUsableCandidate' }
+  if (!best) return { text: null, source: 'noUsableCandidate', focusId }
 
   const { candidate, text, score } = best
   const source = [
@@ -238,7 +277,7 @@ export function selectFocusedTextCandidate(
     `score=${score}`
   ].join(':')
 
-  return { text, source }
+  return { text, source, focusId }
 }
 
 export class WindowsActiveTextReader implements ActiveTextReader {
@@ -249,7 +288,7 @@ export class WindowsActiveTextReader implements ActiveTextReader {
 
   async getFocusedTextResult(bufferContext = ''): Promise<FocusedTextResult> {
     if (process.platform !== 'win32') {
-      return { text: null, source: 'unsupportedPlatform' }
+      return { text: null, source: 'unsupportedPlatform', focusId: null }
     }
 
     try {
@@ -265,19 +304,25 @@ export class WindowsActiveTextReader implements ActiveTextReader {
 
       const result = JSON.parse(stdout.trim()) as {
         candidates?: FocusedTextCandidate[] | FocusedTextCandidate
+        focusedElement?: FocusedElementIdentity | null
         source?: string
       }
+      const focusId = createFocusId(result.focusedElement)
       const rawCandidates = result.candidates
       const candidates = Array.isArray(rawCandidates)
         ? rawCandidates
         : rawCandidates
           ? [rawCandidates]
           : []
-      const focusedTextResult = selectFocusedTextCandidate(candidates, bufferContext)
+      const focusedTextResult = selectFocusedTextCandidate(candidates, bufferContext, focusId)
       const text = focusedTextResult.text
 
       if (!text) {
-        return { text: null, source: focusedTextResult.source ?? result.source ?? 'empty' }
+        return {
+          text: null,
+          source: focusedTextResult.source ?? result.source ?? 'empty',
+          focusId
+        }
       }
 
       console.log(
@@ -286,7 +331,7 @@ export class WindowsActiveTextReader implements ActiveTextReader {
 
       return focusedTextResult
     } catch {
-      return { text: null, source: 'error' }
+      return { text: null, source: 'error', focusId: null }
     }
   }
 }
