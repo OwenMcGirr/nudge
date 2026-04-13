@@ -55,6 +55,18 @@ npm run build
 
 Build the Electron main process, preload script, and renderer.
 
+```sh
+npm run inspect-focused-text
+```
+
+Inspect the currently focused Windows UI Automation element and print the text/value patterns it exposes. By default this prints metadata and character counts only. To include short text previews, run it with `SHOW_FOCUSED_TEXT=1`.
+
+In PowerShell:
+
+```powershell
+$env:SHOW_FOCUSED_TEXT = '1'; npm run inspect-focused-text
+```
+
 ## How Autocomplete Works
 
 The main process records typed characters in a rolling buffer, waits for a short pause, and sends the context to Ollama. The Ollama client normalizes the returned suggestion before showing it so insertion works for both complete words and partial words.

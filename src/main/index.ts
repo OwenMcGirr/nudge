@@ -1,6 +1,7 @@
 import { app } from 'electron'
 // @ts-ignore — @tkomde/iohook has no TypeScript definitions; exports instance directly
 const iohook = require('@tkomde/iohook')
+import { resolveAutocompleteContext, WindowsActiveTextReader } from './active-text-reader'
 import { KeyboardMonitor } from './keyboard-monitor'
 import { OllamaClient } from './ollama-client'
 import { TextInjector } from './text-injector'
@@ -40,9 +41,19 @@ let overlayVisible = false
 const ollamaClient = new OllamaClient()
 const textInjector = new TextInjector()
 const windowManager = new WindowManager()
+const activeTextReader = new WindowsActiveTextReader()
 
 const keyboardMonitor = new KeyboardMonitor(
-  async (context) => {
+  async (bufferContext) => {
+    const focusedTextResult = await activeTextReader.getFocusedTextResult(bufferContext)
+    const context = resolveAutocompleteContext(bufferContext, focusedTextResult.text)
+
+    if (!focusedTextResult.text) {
+      console.log(
+        `[active-text-reader] no focused text via ${focusedTextResult.source}; using keyboard buffer (${bufferContext.length} chars)`
+      )
+    }
+
     const suggestion = await ollamaClient.generate(context)
     if (!suggestion) return
 

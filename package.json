@@ -7,6 +7,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "test": "vitest run",
+    "inspect-focused-text": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/inspect-focused-text.ps1",
     "postinstall": "electron-rebuild -f -w @tkomde/iohook"
   },
   "iohook": {
