@@ -1,6 +1,6 @@
 import { app } from 'electron'
-// @ts-ignore — @tkomde/iohook has no TypeScript definitions
-const { iohook } = require('@tkomde/iohook')
+// @ts-ignore — @tkomde/iohook has no TypeScript definitions; exports instance directly
+const iohook = require('@tkomde/iohook')
 import { KeyboardMonitor } from './keyboard-monitor'
 import { OllamaClient } from './ollama-client'
 import { TextInjector } from './text-injector'
