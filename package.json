@@ -1,0 +1,34 @@
+{
+  "name": "nudge",
+  "version": "0.1.0",
+  "description": "AI-powered autocomplete for your desktop",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "test": "vitest run",
+    "postinstall": "electron-rebuild -f -w @tkomde/iohook"
+  },
+  "iohook": {
+    "targets": ["electron-38"],
+    "platformSpecific": true
+  },
+  "dependencies": {
+    "@tkomde/iohook": "^1.1.7",
+    "@xitanggg/node-insert-text": "^1.5.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "electron": "^38.0.0",
+    "electron-builder": "^24.0.0",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  }
+}
