@@ -1,4 +1,4 @@
-import { app, ipcMain } from 'electron'
+import { app, ipcMain, Menu, nativeImage, Tray } from 'electron'
 // @ts-ignore — @tkomde/iohook has no TypeScript definitions; exports instance directly
 const iohook = require('@tkomde/iohook')
 import { resolveAutocompleteContext, WindowsActiveTextReader } from './active-text-reader'
@@ -36,6 +36,7 @@ function resolveKeychar(keycode: number, keychar: string | number | undefined, s
 let currentSuggestion = ''
 let overlayVisible = false
 let lastFocusId: string | null = null
+let tray: Tray | null = null
 
 const ollamaClient = new OllamaClient()
 const textInjector = new TextInjector()
@@ -54,6 +55,33 @@ function acceptCurrentSuggestion(): void {
   if (!overlayVisible || !currentSuggestion) return
   textInjector.inject(currentSuggestion)
   hideCurrentSuggestion()
+}
+
+function createTray(): void {
+  const icon = nativeImage.createFromDataURL(
+    'data:image/svg+xml;utf8,' +
+      encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+          <rect width="32" height="32" rx="7" fill="#1A1A1A"/>
+          <path d="M9 22V10h3.1l7.8 7.8V10H23v12h-3.1l-7.8-7.8V22H9z" fill="#FFFFFF"/>
+        </svg>
+      `)
+  )
+
+  tray = new Tray(icon)
+  tray.setToolTip('Nudge')
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: 'Nudge', enabled: false },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => {
+          app.quit()
+        }
+      }
+    ])
+  )
 }
 
 const keyboardMonitor = new KeyboardMonitor(
@@ -96,6 +124,7 @@ const keyboardMonitor = new KeyboardMonitor(
 )
 
 app.whenReady().then(() => {
+  createTray()
   windowManager.createOverlay()
 
   ipcMain.on('accept-suggestion', () => {

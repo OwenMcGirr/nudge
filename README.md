@@ -44,6 +44,7 @@ After you pause while typing, Nudge builds context from the focused input when a
 - Click `Dismiss` to hide it.
 - Pressing another key while the overlay is visible dismisses the suggestion.
 - `Tab` is not used for accept because the focused app can also handle it and move focus.
+- Use the Nudge tray icon menu to quit the app.
 
 ## Scripts
 
@@ -150,3 +151,4 @@ src/renderer/   React overlay UI
 - Ollama CLI availability is separate from the Ollama server. The app only requires the HTTP API to be running.
 - Keyboard monitoring, focused-text reading, and text insertion use Windows/native APIs, so behavior can vary by target app.
 - Password fields are ignored by the focused-text reader.
+- The app stays alive without a normal window; use the tray menu to quit.
