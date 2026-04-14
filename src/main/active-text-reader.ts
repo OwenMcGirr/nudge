@@ -4,7 +4,7 @@ import { promisify } from 'node:util'
 const execFileAsync = promisify(execFile)
 
 const MAX_CONTEXT_LENGTH = 500
-const READ_TIMEOUT_MS = 750
+const READ_TIMEOUT_MS = 2000
 
 const UI_AUTOMATION_SCRIPT = `
 $ErrorActionPreference = 'Stop'
@@ -77,22 +77,6 @@ function Inspect-Element(
   $pattern = $null
   if ($Element.TryGetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern, [ref] $pattern)) {
     $textPattern = [System.Windows.Automation.TextPattern] $pattern
-    $selection = $textPattern.GetSelection()
-
-    if ($null -ne $selection -and $selection.Count -gt 0) {
-      $beforeSelection = $textPattern.DocumentRange.Clone()
-      $beforeSelection.MoveEndpointByRange(
-        [System.Windows.Automation.TextPatternRangeEndpoint]::End,
-        $selection[0],
-        [System.Windows.Automation.TextPatternRangeEndpoint]::Start
-      ) | Out-Null
-
-      Add-Candidate $Element $Relation $Distance 'textPatternBeforeSelection' $beforeSelection.GetText($MaxTextLength)
-
-      $selectionText = $selection[0].GetText($MaxTextLength)
-      Add-Candidate $Element $Relation $Distance 'textPatternSelection' $selectionText
-    }
-
     Add-Candidate $Element $Relation $Distance 'textPatternDocument' $textPattern.DocumentRange.GetText($MaxTextLength)
   }
 
@@ -330,8 +314,15 @@ export class WindowsActiveTextReader implements ActiveTextReader {
       )
 
       return focusedTextResult
-    } catch {
-      return { text: null, source: 'error', focusId: null }
+    } catch (err) {
+      const error = err as { code?: string; signal?: string; killed?: boolean; stderr?: string; message?: string }
+      const stderr = error.stderr?.trim().split(/\r?\n/)[0]
+      const reason =
+        error.killed || error.signal === 'SIGTERM'
+          ? 'timeout'
+          : stderr || error.code || error.message || 'unknown'
+
+      return { text: null, source: `error:${reason}`, focusId: null }
     }
   }
 }
