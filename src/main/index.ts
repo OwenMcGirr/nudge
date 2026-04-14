@@ -5,7 +5,7 @@ import { resolveAutocompleteContext, WindowsActiveTextReader } from './active-te
 import { KeyboardMonitor } from './keyboard-monitor'
 import { OllamaClient } from './ollama-client'
 import { TextInjector } from './text-injector'
-import { WindowManager } from './window-manager'
+import { DebugState, WindowManager } from './window-manager'
 
 // iohook emits scan codes (AT Set 1) but keychar is undefined in this build.
 // Map scan code → [unshifted, shifted] for US-QWERTY layout.
@@ -37,11 +37,31 @@ let currentSuggestion = ''
 let overlayVisible = false
 let lastFocusId: string | null = null
 let tray: Tray | null = null
+let lastDebugState: DebugState = {
+  status: 'starting',
+  bufferLength: 0,
+  contextLength: 0,
+  contextSource: 'none',
+  focusSource: 'none',
+  suggestionLength: 0,
+  overlayVisible: false,
+  updatedAt: ''
+}
 
 const ollamaClient = new OllamaClient()
 const textInjector = new TextInjector()
 const windowManager = new WindowManager()
 const activeTextReader = new WindowsActiveTextReader()
+
+function updateDebugState(partial: Partial<DebugState>): void {
+  lastDebugState = {
+    ...lastDebugState,
+    ...partial,
+    overlayVisible,
+    updatedAt: new Date().toLocaleTimeString()
+  }
+  windowManager.updateDebugState(lastDebugState)
+}
 
 function hideCurrentSuggestion(): void {
   overlayVisible = false
@@ -49,6 +69,7 @@ function hideCurrentSuggestion(): void {
   keyboardMonitor.setOverlayActive(false)
   keyboardMonitor.cancelDebounce()
   windowManager.hideSuggestion()
+  updateDebugState({ status: 'hidden', suggestionLength: 0 })
 }
 
 function acceptCurrentSuggestion(): void {
@@ -86,6 +107,14 @@ function createTray(): void {
 
 const keyboardMonitor = new KeyboardMonitor(
   async (bufferContext) => {
+    updateDebugState({
+      status: 'reading focus',
+      bufferLength: bufferContext.length,
+      contextLength: 0,
+      contextSource: 'pending',
+      suggestionLength: 0
+    })
+
     const focusedTextResult = await activeTextReader.getFocusedTextResult(bufferContext)
     let effectiveBufferContext = bufferContext
 
@@ -97,6 +126,7 @@ const keyboardMonitor = new KeyboardMonitor(
     }
 
     const context = resolveAutocompleteContext(effectiveBufferContext, focusedTextResult.text)
+    const contextSource = focusedTextResult.text ? 'focused text' : 'keyboard buffer'
 
     if (!focusedTextResult.text) {
       console.log(
@@ -104,15 +134,30 @@ const keyboardMonitor = new KeyboardMonitor(
       )
     }
 
-    if (context.trim().length === 0) return
+    updateDebugState({
+      status: 'requesting suggestion',
+      bufferLength: effectiveBufferContext.length,
+      contextLength: context.length,
+      contextSource,
+      focusSource: focusedTextResult.source
+    })
+
+    if (context.trim().length === 0) {
+      updateDebugState({ status: 'idle', contextLength: 0, contextSource: 'none' })
+      return
+    }
 
     const suggestion = await ollamaClient.generate(context)
-    if (!suggestion) return
+    if (!suggestion) {
+      updateDebugState({ status: 'no suggestion', suggestionLength: 0 })
+      return
+    }
 
     currentSuggestion = suggestion
     overlayVisible = true
     keyboardMonitor.setOverlayActive(true)
     windowManager.showSuggestion(suggestion)
+    updateDebugState({ status: 'suggestion visible', suggestionLength: suggestion.length })
   },
   () => {
     // overlay dismissed by keyboard, click, or typing while visible
@@ -120,12 +165,15 @@ const keyboardMonitor = new KeyboardMonitor(
     currentSuggestion = ''
     ollamaClient.cancel()
     windowManager.hideSuggestion()
+    updateDebugState({ status: 'dismissed', suggestionLength: 0 })
   }
 )
 
 app.whenReady().then(() => {
   createTray()
   windowManager.createOverlay()
+  windowManager.createDebugOverlay()
+  updateDebugState({ status: 'ready' })
 
   ipcMain.on('accept-suggestion', () => {
     acceptCurrentSuggestion()
@@ -139,6 +187,10 @@ app.whenReady().then(() => {
   iohook.on('keydown', (event: { keycode: number; keychar?: string | number; shiftKey?: boolean }) => {
     const resolved = resolveKeychar(event.keycode, event.keychar, event.shiftKey ?? false)
     keyboardMonitor.handleKeydown(event.keycode, resolved)
+    updateDebugState({
+      status: 'typing',
+      bufferLength: keyboardMonitor.getContext().length
+    })
   })
 
   iohook.start()

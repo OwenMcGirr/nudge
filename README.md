@@ -45,6 +45,7 @@ After you pause while typing, Nudge builds context from the focused input when a
 - Pressing another key while the overlay is visible dismisses the suggestion.
 - `Tab` is not used for accept because the focused app can also handle it and move focus.
 - Use the Nudge tray icon menu to quit the app.
+- A click-through debug overlay stays visible in the top-left corner.
 
 ## Scripts
 
@@ -135,6 +136,15 @@ or:
 ```text
 [active-text-reader] no focused text via noUsableCandidate; using keyboard buffer (42 chars)
 ```
+
+The always-visible debug overlay shows metadata only:
+
+- current status
+- keyboard buffer length
+- context length and source
+- focused-text reader source
+- suggestion length
+- whether the suggestion overlay is visible
 
 ## Project Structure
 

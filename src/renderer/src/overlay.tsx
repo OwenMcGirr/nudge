@@ -1,27 +1,66 @@
 import { useState, useEffect } from 'react'
 
+type OverlayMode = 'suggestion' | 'debug'
+
+interface DebugState {
+  status: string
+  bufferLength: number
+  contextLength: number
+  contextSource: string
+  focusSource: string
+  suggestionLength: number
+  overlayVisible: boolean
+  updatedAt: string
+}
+
 declare global {
   interface Window {
     electron: {
       onShowSuggestion: (cb: (text: string) => void) => void
       onHide: (cb: () => void) => void
+      onSetOverlayMode: (cb: (mode: OverlayMode) => void) => void
+      onDebugState: (cb: (state: DebugState) => void) => void
       acceptSuggestion: () => void
       dismissSuggestion: () => void
     }
   }
 }
 
+const EMPTY_DEBUG_STATE: DebugState = {
+  status: 'starting',
+  bufferLength: 0,
+  contextLength: 0,
+  contextSource: 'none',
+  focusSource: 'none',
+  suggestionLength: 0,
+  overlayVisible: false,
+  updatedAt: ''
+}
+
+function getInitialMode(): OverlayMode {
+  const mode = new URLSearchParams(window.location.search).get('overlayMode')
+  return mode === 'debug' ? 'debug' : 'suggestion'
+}
+
 export function Overlay() {
+  const [mode, setMode] = useState<OverlayMode>(getInitialMode)
   const [suggestion, setSuggestion] = useState('')
   const [visible, setVisible] = useState(false)
+  const [debugState, setDebugState] = useState<DebugState>(EMPTY_DEBUG_STATE)
 
   useEffect(() => {
+    window.electron.onSetOverlayMode(setMode)
+    window.electron.onDebugState(setDebugState)
     window.electron.onShowSuggestion((text) => {
       setSuggestion(text)
       setVisible(true)
     })
     window.electron.onHide(() => setVisible(false))
   }, [])
+
+  if (mode === 'debug') {
+    return <DebugOverlay state={debugState} />
+  }
 
   if (!visible) return null
 
@@ -78,6 +117,54 @@ export function Overlay() {
           Dismiss
         </button>
       </div>
+    </div>
+  )
+}
+
+function DebugOverlay({ state }: { state: DebugState }) {
+  const rows = [
+    ['status', state.status],
+    ['buffer', `${state.bufferLength} chars`],
+    ['context', `${state.contextLength} chars via ${state.contextSource}`],
+    ['focus', state.focusSource],
+    ['suggestion', `${state.suggestionLength} chars`],
+    ['visible', state.overlayVisible ? 'yes' : 'no'],
+    ['updated', state.updatedAt || '-']
+  ]
+
+  return (
+    <div
+      style={{
+        width: '100vw',
+        height: '100vh',
+        boxSizing: 'border-box',
+        background: 'rgba(0, 0, 0, 0.72)',
+        border: '1px solid rgba(255, 255, 255, 0.14)',
+        borderRadius: '8px',
+        padding: '10px 12px',
+        color: 'rgba(255, 255, 255, 0.88)',
+        userSelect: 'none',
+        fontFamily: 'Consolas, "SFMono-Regular", monospace',
+        fontSize: '11px',
+        lineHeight: 1.35
+      }}
+    >
+      <div style={{ fontSize: '12px', marginBottom: '6px', color: '#8FE388' }}>Nudge debug</div>
+      {rows.map(([label, value]) => (
+        <div key={label} style={{ display: 'flex', gap: '8px', minHeight: '15px' }}>
+          <span style={{ width: '68px', color: 'rgba(255, 255, 255, 0.48)' }}>{label}</span>
+          <span
+            style={{
+              flex: 1,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {value}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
